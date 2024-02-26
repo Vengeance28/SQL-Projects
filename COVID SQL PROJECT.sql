@@ -281,3 +281,77 @@ join covidvaccination2$
 on ['coviddeaths$'].date = covidvaccination2$.date
 where continent is not null
 order by covidvaccination2$.date
+
+
+-- Total Population vs Vaccinations
+-- Shows Percentage of Population that has recieved at least one Covid Vaccine
+
+Select ['coviddeaths$'].continent, ['coviddeaths$'].location,
+covidvaccination2$.date, ['coviddeaths$'].population, covidvaccination2$.new_vaccinations
+, SUM(CONVERT(int,covidvaccination2$.new_vaccinations)) OVER (Partition by ['coviddeaths$'].Location Order by ['coviddeaths$'].location, ['coviddeaths$'].Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From ['coviddeaths$']
+Join covidvaccination2$
+	On ['coviddeaths$'].date = covidvaccination2$.date
+where ['coviddeaths$'].continent is not null 
+order by 2,3
+
+
+
+-- Using CTE to perform Calculation on Partition By in previous query
+
+With PopvsVac (Continent, Location, Date, Population, New_Vaccinations, RollingPeopleVaccinated)
+as
+(
+Select ['coviddeaths$'].continent, ['coviddeaths$'].location, ['coviddeaths$'].date, ['coviddeaths$'].population, covidvaccination2$.new_vaccinations
+, SUM(CONVERT(int,covidvaccination2$.new_vaccinations)) OVER (Partition by ['coviddeaths$'].Location Order by ['coviddeaths$'].location, ['coviddeaths$'].Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From ['coviddeaths$']
+Join covidvaccination2$
+	On ['coviddeaths$'].date = covidvaccination2$.date
+where ['coviddeaths$'].continent is not null 
+--order by 2,3
+)
+Select *, (RollingPeopleVaccinated/Population)*100
+From PopvsVac
+
+
+-- Using Temp Table to perform Calculation on Partition By in previous query
+
+DROP Table if exists #PercentPopulationVaccinated
+Create Table #PercentPopulationVaccinated
+(
+Continent nvarchar(255),
+Location nvarchar(255),
+Date datetime,
+Population numeric,
+New_vaccinations numeric,
+RollingPeopleVaccinated numeric
+)
+
+Insert into #PercentPopulationVaccinated
+Select ['coviddeaths$'].continent, ['coviddeaths$'].location, ['coviddeaths$'].date, ['coviddeaths$'].population, covidvaccination2$.new_vaccinations
+, SUM(CONVERT(int,covidvaccination2$.new_vaccinations)) OVER (Partition by ['coviddeaths$'].Location Order by ['coviddeaths$'].location, ['coviddeaths$'].Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From ['coviddeaths$']
+Join covidvaccination2$
+	On ['coviddeaths$'].date = covidvaccination2$.date
+--where dea.continent is not null 
+--order by 2,3
+
+Select *, (RollingPeopleVaccinated/Population)*100
+From #PercentPopulationVaccinated
+
+
+
+-- view for later visualiation
+create view PercentPopulationVaccinated as 
+Select ['coviddeaths$'].continent, ['coviddeaths$'].location, ['coviddeaths$'].date, ['coviddeaths$'].population, covidvaccination2$.new_vaccinations
+, SUM(CONVERT(int,covidvaccination2$.new_vaccinations)) OVER (Partition by ['coviddeaths$'].Location Order by ['coviddeaths$'].location, ['coviddeaths$'].Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From ['coviddeaths$']
+Join covidvaccination2$
+	On ['coviddeaths$'].date = covidvaccination2$.date
+where ['coviddeaths$'].continent is not null 
+
+
